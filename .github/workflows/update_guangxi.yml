@@ -1,0 +1,46 @@
+name: Auto Update Guangxi Mobile IPTV
+
+on:
+  schedule:
+    # 每天北京时间 04:00 (UTC 20:00) 自动定时检测更新
+    - cron: '0 20 * * *'
+  workflow_dispatch: # 支持在 Actions 页面随时手动点击运行
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run IPTV Checker
+        run: |
+          python m3u_checker.py "m3u/广西移动.m3u" \
+            -o "m3u/广西移动_valid.m3u" \
+            -r "m3u/广西移动_report.md" \
+            --sort \
+            --threads 25 \
+            --timeout 4.0 \
+            --min-valid 20
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add m3u/广西移动_valid.m3u m3u/广西移动_report.md
+          if git diff --staged --quiet; then
+            echo "No changes detected. Skipping commit."
+          else
+            git commit -m "Auto Update: 广西移动_valid.m3u [$(date -u '+%Y-%m-%d %H:%M:%S UTC')]"
+            git push
+          fi
